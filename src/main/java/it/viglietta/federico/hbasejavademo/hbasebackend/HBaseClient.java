@@ -5,17 +5,15 @@ package it.viglietta.federico.hbasejavademo.hbasebackend;
 * */
 
 import it.viglietta.federico.hbasejavademo.hbasebackend.exception.ConfigurationException;
+import it.viglietta.federico.hbasejavademo.hbasebackend.exception.DataOperationException;
 import it.viglietta.federico.hbasejavademo.hbasebackend.exception.SchemaOperationException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
-
 import java.io.IOException;
 import java.util.Properties;
 
@@ -97,6 +95,7 @@ public class HBaseClient {
         }
     }
 
+    /* Output the current schema of the given table*/
     public void printSchema(String table) throws SchemaOperationException {
         try (Admin admin = connection.getAdmin()) {
             HTableDescriptor tableDescriptor = admin.getTableDescriptor(TableName.valueOf(table));
@@ -108,6 +107,72 @@ public class HBaseClient {
             }
         } catch (IOException e) {
             throw new SchemaOperationException("An error occurred while retrieving current schema", e.getCause());
+        }
+    }
+
+    public void setColumns(String table, String rowKey, String columnFamily, String []columns, String[] values) throws DataOperationException {
+        TableName tableName = TableName.valueOf(table);
+        try (Table hTable = connection.getTable(tableName)) {
+            Put put = new Put(Bytes.toBytes(rowKey));
+            if (columns.length != values.length) {
+                throw new DataOperationException("Couldn't setting column values because columns and values array have not the same size");
+            }
+            for (int i = 0; i < columns.length; i++) {
+                put.addColumn(Bytes.toBytes(columnFamily), Bytes.toBytes(columns[i]), Bytes.toBytes(values[i]));
+            }
+            hTable.put(put);
+        } catch (IOException e) {
+            throw new DataOperationException("An error occurred while setting column values", e.getCause());
+        }
+    }
+
+    public void scanTable(String table) throws DataOperationException {
+        TableName tableName = TableName.valueOf(table);
+        Scan scan = new Scan();
+        try (Table hTable = connection.getTable(tableName); ResultScanner resultScanner = hTable.getScanner(scan))
+        {
+            for (Result result : resultScanner) {
+                System.out.println("Found row:" + result);
+            }
+        } catch (IOException e) {
+            throw new DataOperationException("An error occurred while scanning the table", e.getCause());
+        }
+    }
+
+    public void scanTableColumnFamily(String table, String columnFamily) throws DataOperationException {
+        TableName tableName = TableName.valueOf(table);
+        Scan scan = new Scan();
+        scan.addFamily(Bytes.toBytes(columnFamily));
+        try (Table hTable = connection.getTable(tableName); ResultScanner resultScanner = hTable.getScanner(scan)) {
+            for (Result result : resultScanner) {
+                System.out.println(result);
+            }
+        } catch (IOException e) {
+            throw new DataOperationException("An error occurred while scanning the table", e.getCause());
+        }
+    }
+
+    public void deleteColumns(String table, String rowKey, String family, String[] colToDelete) throws DataOperationException {
+        TableName tableName = TableName.valueOf(table);
+        Delete delete = new Delete(Bytes.toBytes(rowKey));
+        for (String column : colToDelete) {
+            delete.addColumn(Bytes.toBytes(family), Bytes.toBytes(column));
+        }
+        try (Table hTable = connection.getTable(tableName)) {
+            hTable.delete(delete);
+        } catch (IOException e) {
+            throw new DataOperationException("An error occurred while deleting columns", e.getCause());
+        }
+    }
+
+    public void getRow(String table, String rowKey) throws DataOperationException {
+        Get get = new Get(Bytes.toBytes(rowKey));
+        TableName tableName = TableName.valueOf(table);
+        try (Table hTable = connection.getTable(tableName)) {
+            Result result = hTable.get(get);
+            System.out.println(result);
+        } catch (IOException e) {
+            throw new DataOperationException("An error occurred while getting an item", e.getCause());
         }
     }
 }
