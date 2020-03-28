@@ -8,13 +8,13 @@ import it.viglietta.federico.hbasejavademo.hbasebackend.exception.ConfigurationE
 import it.viglietta.federico.hbasejavademo.hbasebackend.exception.DataOperationException;
 import it.viglietta.federico.hbasejavademo.hbasebackend.exception.SchemaOperationException;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
-import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 
 public class HBaseClient {
@@ -173,6 +173,37 @@ public class HBaseClient {
             System.out.println(result);
         } catch (IOException e) {
             throw new DataOperationException("An error occurred while getting an item", e.getCause());
+        }
+    }
+
+    public void scanTableRowKeyPrefix(String table, String prefix) throws DataOperationException {
+        Scan scan = new Scan();
+        scan.withStartRow(Bytes.toBytes(prefix));
+        scan.setRowPrefixFilter(Bytes.toBytes(prefix));
+        TableName tableName = TableName.valueOf(table);
+        try (Table hTable = connection.getTable(tableName); ResultScanner resultScanner = hTable.getScanner(scan)) {
+            for (Result result : resultScanner) {
+                System.out.println("Found row: " + result);
+            }
+        } catch (IOException e) {
+            throw new DataOperationException("An error occurred while scanning the table", e.getCause());
+        }
+    }
+
+    public void getUsersBornIn1993() throws DataOperationException {
+        Scan scan = new Scan();
+        scan.withStartRow(Bytes.toBytes("a"));
+        scan.setRowPrefixFilter(Bytes.toBytes("a"));
+        SingleColumnValueFilter filter = new SingleColumnValueFilter(Bytes.toBytes("cf"), Bytes.toBytes("born"),
+                CompareFilter.CompareOp.EQUAL, Bytes.toBytes("1993"));
+        scan.setFilter(filter);
+        TableName tableName = TableName.valueOf("Users");
+        try (Table hTable = connection.getTable(tableName); ResultScanner resultScanner = hTable.getScanner(scan)) {
+            for (Result result : resultScanner) {
+                System.out.println("Found row: " + result);
+            }
+        } catch (IOException e) {
+            throw new DataOperationException("An error occurred while scanning the table", e.getCause());
         }
     }
 }

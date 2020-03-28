@@ -86,6 +86,55 @@ public class HBaseDemo {
 
     }
 
+    private static void readOperations(HBaseClient client) {
+        try {
+            System.out.println("Creating a table named Persons and one column family cf");
+            client.createTable("Users", "cf");
+            System.out.println("Table created");
+            System.out.println();
+            System.out.println("Inserting some users...");
+
+            String[] columns = {"born"};
+            String[] bornValues1 = {"1996"};
+            String[] bornValues2 = {"1993"};
+            String[] bornValues3 = {"1927"};
+            String[] bornValues4 = {"1998"};
+            String rowKey1 = "a/1";
+            String rowKey2 = "a/2";
+            String rowKey3 = "a/3";
+            String rowKey4 = "b/1";
+
+            client.setColumns("Users", rowKey1, "cf", columns, bornValues1);
+            client.setColumns("Users", rowKey2, "cf", columns, bornValues2);
+            client.setColumns("Users", rowKey3, "cf", columns, bornValues3);
+            client.setColumns("Users", rowKey4, "cf", columns, bornValues4);
+
+            System.out.println("Element inserted");
+
+            System.out.println("Scanning table...");
+            client.scanTable("Users");
+            System.out.println();
+
+            System.out.println("Retrieving items having key starting with a...");
+            client.scanTableRowKeyPrefix("Users", "a");
+            System.out.println();
+
+            System.out.println("Retrieving items having key starting with a and born in 1993...");
+            client.getUsersBornIn1993();
+            System.out.println();
+
+
+            System.out.println("Deleting table Users...");
+            client.deleteTable("Users");
+            System.out.println("Table deleted");
+
+            System.out.println();
+        } catch (SchemaOperationException | DataOperationException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     public static void main(String[] args) {
         try {
             System.out.println("Configuring HBase...");
@@ -100,15 +149,22 @@ public class HBaseDemo {
 
             schemaOperations(client);
 
-            System.out.println("###################");
+            System.out.println("#################");
             System.out.println("#Data Operations#");
-            System.out.println("###################");
+            System.out.println("#################");
             System.out.println();
             dataOperations(client);
+
+            System.out.println("################");
+            System.out.println("#Focus on reads#");
+            System.out.println("################");
+
+            readOperations(client);
 
         } catch (ConfigurationException e) {
             e.printStackTrace();
         }
     }
+
 
 }
